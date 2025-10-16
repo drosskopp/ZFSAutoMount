@@ -34,7 +34,7 @@ struct PreferencesView: View {
                     Label("About", systemImage: "info.circle")
                 }
         }
-        .frame(width: 500, height: 400)
+        .frame(width: 700, height: 500)
         .onAppear {
             loadPreferences()
             savedKeys = keychainHelper.listAllKeys()
@@ -639,102 +639,109 @@ struct MaintenanceTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Scrub Schedule Section
-                GroupBox(label: Label("Scrub Schedule", systemImage: "magnifyingglass")) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Enable automatic scrubbing", isOn: $scrubEnabled)
-                            .onChange(of: scrubEnabled) { _, newValue in
-                                updateScrubSchedule()
-                            }
-
-                        if scrubEnabled {
-                            Picker("Frequency:", selection: $scrubFrequency) {
-                                Text("Weekly").tag("weekly")
-                                Text("Monthly").tag("monthly")
-                                Text("Quarterly").tag("quarterly")
-                            }
-                            .onChange(of: scrubFrequency) { _, _ in
-                                updateScrubSchedule()
-                            }
-
-                            Picker("Run on:", selection: $scrubDayOfWeek) {
-                                Text("Sunday").tag(0)
-                                Text("Monday").tag(1)
-                                Text("Tuesday").tag(2)
-                                Text("Wednesday").tag(3)
-                                Text("Thursday").tag(4)
-                                Text("Friday").tag(5)
-                                Text("Saturday").tag(6)
-                            }
-                            .onChange(of: scrubDayOfWeek) { _, _ in
-                                updateScrubSchedule()
-                            }
-
-                            Picker("Time:", selection: $scrubHour) {
-                                ForEach(0..<24) { hour in
-                                    Text(String(format: "%02d:00", hour)).tag(hour)
+                // Scrub and TRIM Schedule Sections - Side by Side
+                HStack(alignment: .top, spacing: 12) {
+                    // Scrub Schedule Section
+                    GroupBox(label: Label("Scrub Schedule", systemImage: "magnifyingglass")) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle("Enable automatic scrubbing", isOn: $scrubEnabled)
+                                .onChange(of: scrubEnabled) { _, newValue in
+                                    updateScrubSchedule()
                                 }
-                            }
-                            .onChange(of: scrubHour) { _, _ in
-                                updateScrubSchedule()
-                            }
 
-                            Text("Next scrub: \(nextScrubDate())")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            if scrubEnabled {
+                                Picker("Frequency:", selection: $scrubFrequency) {
+                                    Text("Weekly").tag("weekly")
+                                    Text("Monthly").tag("monthly")
+                                    Text("Quarterly").tag("quarterly")
+                                }
+                                .onChange(of: scrubFrequency) { _, _ in
+                                    updateScrubSchedule()
+                                }
+
+                                if scrubFrequency == "weekly" {
+                                    Picker("Run on:", selection: $scrubDayOfWeek) {
+                                        Text("Sunday").tag(0)
+                                        Text("Monday").tag(1)
+                                        Text("Tuesday").tag(2)
+                                        Text("Wednesday").tag(3)
+                                        Text("Thursday").tag(4)
+                                        Text("Friday").tag(5)
+                                        Text("Saturday").tag(6)
+                                    }
+                                    .onChange(of: scrubDayOfWeek) { _, _ in
+                                        updateScrubSchedule()
+                                    }
+                                }
+
+                                Picker("Time:", selection: $scrubHour) {
+                                    ForEach(0..<24) { hour in
+                                        Text(String(format: "%02d:00", hour)).tag(hour)
+                                    }
+                                }
+                                .onChange(of: scrubHour) { _, _ in
+                                    updateScrubSchedule()
+                                }
+
+                                Text("Next scrub: \(nextScrubDate())")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
+                        .padding()
                     }
-                    .padding()
-                }
+                    .frame(maxWidth: .infinity)
 
-                // TRIM Schedule Section
-                GroupBox(label: Label("TRIM Schedule", systemImage: "scissors")) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Toggle("Enable automatic TRIM", isOn: $trimEnabled)
-                            .onChange(of: trimEnabled) { _, newValue in
-                                updateTRIMSchedule()
-                            }
-
-                        if trimEnabled {
-                            Picker("Frequency:", selection: $trimFrequency) {
-                                Text("Daily").tag("daily")
-                                Text("Weekly").tag("weekly")
-                                Text("Monthly").tag("monthly")
-                            }
-                            .onChange(of: trimFrequency) { _, _ in
-                                updateTRIMSchedule()
-                            }
-
-                            if trimFrequency != "daily" {
-                                Picker("Run on:", selection: $trimDayOfWeek) {
-                                    Text("Sunday").tag(0)
-                                    Text("Monday").tag(1)
-                                    Text("Tuesday").tag(2)
-                                    Text("Wednesday").tag(3)
-                                    Text("Thursday").tag(4)
-                                    Text("Friday").tag(5)
-                                    Text("Saturday").tag(6)
-                                }
-                                .onChange(of: trimDayOfWeek) { _, _ in
+                    // TRIM Schedule Section
+                    GroupBox(label: Label("TRIM Schedule", systemImage: "scissors")) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle("Enable automatic TRIM", isOn: $trimEnabled)
+                                .onChange(of: trimEnabled) { _, newValue in
                                     updateTRIMSchedule()
                                 }
-                            }
 
-                            Picker("Time:", selection: $trimHour) {
-                                ForEach(0..<24) { hour in
-                                    Text(String(format: "%02d:00", hour)).tag(hour)
+                            if trimEnabled {
+                                Picker("Frequency:", selection: $trimFrequency) {
+                                    Text("Daily").tag("daily")
+                                    Text("Weekly").tag("weekly")
+                                    Text("Monthly").tag("monthly")
                                 }
-                            }
-                            .onChange(of: trimHour) { _, _ in
-                                updateTRIMSchedule()
-                            }
+                                .onChange(of: trimFrequency) { _, _ in
+                                    updateTRIMSchedule()
+                                }
 
-                            Text("Next TRIM: \(nextTRIMDate())")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                if trimFrequency == "weekly" {
+                                    Picker("Run on:", selection: $trimDayOfWeek) {
+                                        Text("Sunday").tag(0)
+                                        Text("Monday").tag(1)
+                                        Text("Tuesday").tag(2)
+                                        Text("Wednesday").tag(3)
+                                        Text("Thursday").tag(4)
+                                        Text("Friday").tag(5)
+                                        Text("Saturday").tag(6)
+                                    }
+                                    .onChange(of: trimDayOfWeek) { _, _ in
+                                        updateTRIMSchedule()
+                                    }
+                                }
+
+                                Picker("Time:", selection: $trimHour) {
+                                    ForEach(0..<24) { hour in
+                                        Text(String(format: "%02d:00", hour)).tag(hour)
+                                    }
+                                }
+                                .onChange(of: trimHour) { _, _ in
+                                    updateTRIMSchedule()
+                                }
+
+                                Text("Next TRIM: \(nextTRIMDate())")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
+                        .padding()
                     }
-                    .padding()
+                    .frame(maxWidth: .infinity)
                 }
 
                 // Pool Status Section
@@ -876,12 +883,110 @@ struct MaintenanceTab: View {
     }
 
     private func nextScrubDate() -> String {
-        // TODO: Calculate next run date based on schedule
-        return "Not scheduled"
+        guard scrubEnabled else { return "Not scheduled" }
+        return calculateNextRunDate(frequency: scrubFrequency, dayOfWeek: scrubDayOfWeek, hour: scrubHour)
     }
 
     private func nextTRIMDate() -> String {
-        // TODO: Calculate next run date based on schedule
+        guard trimEnabled else { return "Not scheduled" }
+        return calculateNextRunDate(frequency: trimFrequency, dayOfWeek: trimDayOfWeek, hour: trimHour)
+    }
+
+    private func calculateNextRunDate(frequency: String, dayOfWeek: Int, hour: Int) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        var nextDate: Date?
+
+        switch frequency {
+        case "daily":
+            // Run daily at specified hour
+            var components = calendar.dateComponents([.year, .month, .day], from: now)
+            components.hour = hour
+            components.minute = 0
+
+            if let todayRun = calendar.date(from: components), todayRun > now {
+                nextDate = todayRun
+            } else {
+                // Already passed today, schedule for tomorrow
+                nextDate = calendar.date(byAdding: .day, value: 1, to: calendar.date(from: components)!)
+            }
+
+        case "weekly":
+            // Run weekly on specified day and hour
+            var components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now)
+            components.weekday = dayOfWeek + 1 // Calendar uses 1-7, we use 0-6
+            components.hour = hour
+            components.minute = 0
+
+            if let thisWeekRun = calendar.date(from: components), thisWeekRun > now {
+                nextDate = thisWeekRun
+            } else {
+                // Already passed this week, schedule for next week
+                nextDate = calendar.date(byAdding: .weekOfYear, value: 1, to: calendar.date(from: components)!)
+            }
+
+        case "monthly":
+            // Run monthly on day 1 at specified hour
+            var components = calendar.dateComponents([.year, .month], from: now)
+            components.day = 1
+            components.hour = hour
+            components.minute = 0
+
+            if let thisMonthRun = calendar.date(from: components), thisMonthRun > now {
+                nextDate = thisMonthRun
+            } else {
+                // Already passed this month, schedule for next month
+                nextDate = calendar.date(byAdding: .month, value: 1, to: calendar.date(from: components)!)
+            }
+
+        case "quarterly":
+            // Run quarterly on Jan 1, Apr 1, Jul 1, Oct 1 at specified hour
+            let currentMonth = calendar.component(.month, from: now)
+            let quarterlyMonths = [1, 4, 7, 10]
+
+            for month in quarterlyMonths {
+                if month > currentMonth {
+                    var components = calendar.dateComponents([.year], from: now)
+                    components.month = month
+                    components.day = 1
+                    components.hour = hour
+                    components.minute = 0
+                    nextDate = calendar.date(from: components)
+                    break
+                } else if month == currentMonth {
+                    var components = calendar.dateComponents([.year, .month], from: now)
+                    components.day = 1
+                    components.hour = hour
+                    components.minute = 0
+                    if let thisQuarterRun = calendar.date(from: components), thisQuarterRun > now {
+                        nextDate = thisQuarterRun
+                        break
+                    }
+                }
+            }
+
+            // If no date found this year, use Jan 1 next year
+            if nextDate == nil {
+                var components = calendar.dateComponents([.year], from: now)
+                components.year! += 1
+                components.month = 1
+                components.day = 1
+                components.hour = hour
+                components.minute = 0
+                nextDate = calendar.date(from: components)
+            }
+
+        default:
+            return "Unknown frequency"
+        }
+
+        if let nextDate = nextDate {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: nextDate)
+        }
+
         return "Not scheduled"
     }
 

@@ -56,7 +56,7 @@ echo ""
 # Step 4: Deploy app
 echo "📋 Step 4: Deploying app to /Applications..."
 sudo rm -rf /Applications/ZFSAutoMount.app
-sudo cp -R /Users/yourname/Library/Developer/Xcode/DerivedData/ZFSAutoMount-*/Build/Products/Debug/ZFSAutoMount.app /Applications/
+sudo cp -R ~/Library/Developer/Xcode/DerivedData/ZFSAutoMount-*/Build/Products/Debug/ZFSAutoMount.app /Applications/
 
 echo "✅ App deployed"
 echo ""
