@@ -153,18 +153,18 @@ open ./build/Build/Products/Release/ZFSAutoMount.app
 ### 3. Test with your pools
 
 The app should detect your pools:
-- **media** (3.43T)
-  - media/enc2 (encrypted)
-- **tank** (8.21T)
-  - tank/airback
-  - tank/enc1 (encrypted)
+- **storage** (3.43T)
+  - storage/dataset2 (encrypted)
+- **mypool** (8.21T)
+  - mypool/backup
+  - mypool/dataset1 (encrypted)
 
 ### 4. Test encryption key prompt
 
 1. Unmount an encrypted dataset:
    ```bash
-   sudo zfs unmount media/enc2
-   sudo zfs unload-key media/enc2
+   sudo zfs unmount storage/dataset2
+   sudo zfs unload-key storage/dataset2
    ```
 
 2. Use the app to mount it (should prompt for key)
@@ -301,7 +301,7 @@ git push
 After successfully building:
 
 1. **Test thoroughly** with your ZFS pools
-2. **Test encryption** with your encrypted datasets (media/enc2, tank/enc1)
+2. **Test encryption** with your encrypted datasets (storage/dataset2, mypool/dataset1)
 3. **Set up boot mounting** via LaunchDaemon
 4. **Create Homebrew tap** for distribution
 5. **Get Apple Developer account** when ready for wider distribution

@@ -75,13 +75,13 @@ class ConfigParser {
         #   mountpoint    - Custom mount point
 
         # Examples:
-        # tank/enc1 keylocation=file:///Volumes/external/keys/enc1.key
-        # media/enc2 readonly=on
-        # tank/backup canmount=noauto
+        # mypool/dataset1 keylocation=file:///Volumes/external/keys/enc1.key
+        # storage/dataset2 readonly=on
+        # mypool/backup canmount=noauto
 
         # Your ZFS datasets (examples based on your system):
-        # media/enc2 keylocation=file:///path/to/media-enc2.key
-        # tank/enc1 keylocation=file:///path/to/tank-enc1.key
+        # storage/dataset2 keylocation=file:///path/to/dataset.key
+        # mypool/dataset1 keylocation=file:///path/to/pool.key
         """
 
         // Only write if doesn't exist

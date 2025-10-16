@@ -80,8 +80,8 @@ You should see a disk icon in your menu bar!
 
 ```bash
 # Unmount one of your encrypted datasets
-sudo zfs unmount media/enc2
-sudo zfs unload-key media/enc2
+sudo zfs unmount storage/dataset2
+sudo zfs unload-key storage/dataset2
 
 # Verify it's unmounted
 df -h | grep enc2
@@ -100,7 +100,7 @@ Now use the app:
 Verify it mounted:
 ```bash
 df -h | grep enc2
-# Should show: /Volumes/media/enc2
+# Should show: /Volumes/storage/dataset2
 ```
 
 ## Step 6: Set Up Boot-Time Mounting (3 minutes)
@@ -118,8 +118,8 @@ sudo nano /etc/zfs/automount.conf
 Add your keyfile locations:
 ```
 # Your encrypted datasets
-media/enc2 keylocation=file:///path/to/your/media-enc2.key
-tank/enc1 keylocation=file:///path/to/your/tank-enc1.key
+storage/dataset2 keylocation=file:///path/to/your/dataset.key
+mypool/dataset1 keylocation=file:///path/to/your/pool.key
 ```
 
 Replace `/path/to/your/` with actual paths to your keyfiles.
@@ -151,8 +151,8 @@ sudo launchctl list | grep openzfs.automount.daemon
 sudo zfs unmount -a
 
 # Unload keys
-sudo zfs unload-key media/enc2
-sudo zfs unload-key tank/enc1
+sudo zfs unload-key storage/dataset2
+sudo zfs unload-key mypool/dataset1
 
 # Test boot mount
 /Applications/ZFSAutoMount.app/Contents/MacOS/ZFSAutoMount --boot-mount
@@ -303,11 +303,11 @@ After completing all steps, you should have:
 ## Your Setup
 
 Pools that should appear:
-- **media** (3.43T / 7.14T) - ONLINE
-  - media/enc2 (encrypted)
-- **tank** (8.21T / 10.44T) - ONLINE
-  - tank/airback
-  - tank/enc1 (encrypted)
+- **storage** (3.43T / 7.14T) - ONLINE
+  - storage/dataset2 (encrypted)
+- **mypool** (8.21T / 10.44T) - ONLINE
+  - mypool/backup
+  - mypool/dataset1 (encrypted)
 
 ---
 
