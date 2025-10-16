@@ -1,0 +1,24 @@
+# ZFS AutoMount Configuration
+# Location: /etc/zfs/automount.conf
+#
+# Format: dataset_name [options]
+#
+# Options:
+#   keylocation=file:///path/to/keyfile  - Path to encryption keyfile
+#   mountpoint=/custom/path               - Override default mountpoint
+#
+# Examples:
+
+# Encrypted datasets (using keyfile)
+pool/encrypted1 keylocation=file:///etc/zfs/keys/encryption.key
+pool/encrypted2 keylocation=file:///etc/zfs/keys/encryption.key
+
+# Different keyfiles for different datasets
+backup/sensitive keylocation=file:///etc/zfs/keys/backup.key
+
+# Non-encrypted datasets (auto-mount with no options)
+pool
+backup
+
+# You can also specify just the pool name to auto-mount all its datasets
+# mypool

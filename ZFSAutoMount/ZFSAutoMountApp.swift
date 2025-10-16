@@ -45,22 +45,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleBootMount() {
         let manager = ZFSManager.shared
 
-        print("ZFS AutoMount: Starting boot-time import and mount...")
+        logBoot("Starting boot-time import and mount")
+
+        // Wait for disk subsystem to be ready
+        waitForDiskSubsystem()
 
         // Import all pools
         manager.importAllPools { success, error in
             if success {
-                print("ZFS AutoMount: Pools imported successfully")
+                self.logBoot("Pools imported successfully")
             } else {
-                print("ZFS AutoMount: Error importing pools: \(error ?? "unknown")")
+                self.logBoot("Error importing pools: \(error ?? "unknown")")
             }
 
             // Mount all datasets
             manager.mountAllDatasets { success, error in
                 if success {
-                    print("ZFS AutoMount: All datasets mounted successfully")
+                    self.logBoot("All datasets mounted successfully")
+                    self.updateBootCookie()
                 } else {
-                    print("ZFS AutoMount: Error mounting datasets: \(error ?? "unknown")")
+                    self.logBoot("Error mounting datasets: \(error ?? "unknown")")
                 }
 
                 exit(success ? 0 : 1)
@@ -69,6 +73,87 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Wait for async operations
         RunLoop.main.run()
+    }
+
+    private func waitForDiskSubsystem() {
+        logBoot("Waiting for disk subsystem to be ready")
+
+        // 1. Force device tree population via system_profiler
+        logBoot("Running system_profiler to populate device tree")
+        let profilerTask = Process()
+        profilerTask.executableURL = URL(fileURLWithPath: "/usr/sbin/system_profiler")
+        profilerTask.arguments = [
+            "SPStorageDataType",
+            "SPUSBDataType",
+            "SPThunderboltDataType",
+            "SPSerialATADataType",
+            "SPPCIDataType"
+        ]
+        profilerTask.standardOutput = FileHandle.nullDevice
+        profilerTask.standardError = FileHandle.nullDevice
+
+        do {
+            try profilerTask.run()
+            profilerTask.waitUntilExit()
+        } catch {
+            logBoot("Warning: system_profiler failed: \(error.localizedDescription)")
+        }
+
+        // 2. Sync filesystems
+        let syncTask = Process()
+        syncTask.executableURL = URL(fileURLWithPath: "/bin/sync")
+        try? syncTask.run()
+        syncTask.waitUntilExit()
+
+        // 3. Wait for InvariantDisks daemon (up to 60 seconds)
+        let invariantFile = "/var/run/disk/invariant.idle"
+        let timeout: TimeInterval = 60
+        let startTime = Date()
+
+        logBoot("Waiting for \(invariantFile) (timeout: \(Int(timeout))s)")
+
+        while !FileManager.default.fileExists(atPath: invariantFile) {
+            let elapsed = Date().timeIntervalSince(startTime)
+            if elapsed >= timeout {
+                logBoot("Warning: \(invariantFile) not found after \(Int(timeout))s")
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+
+        let elapsed = Date().timeIntervalSince(startTime)
+        if FileManager.default.fileExists(atPath: invariantFile) {
+            logBoot("Found \(invariantFile) after \(String(format: "%.2f", elapsed))s")
+        }
+
+        // 4. Additional safety buffer (5s instead of 10s - we're faster than shell scripts)
+        logBoot("Waiting additional 5 seconds for stability")
+        Thread.sleep(forTimeInterval: 5.0)
+
+        logBoot("Disk subsystem ready - proceeding with pool import")
+    }
+
+    private func logBoot(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .long
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] ZFS AutoMount: \(message)")
+    }
+
+    private func updateBootCookie() {
+        let cookiePath = "/var/run/org.openzfs.automount.didRun"
+        let now = Date()
+        let attrs = [FileAttributeKey.modificationDate: now]
+
+        if FileManager.default.fileExists(atPath: cookiePath) {
+            try? FileManager.default.setAttributes(attrs, ofItemAtPath: cookiePath)
+            logBoot("Updated boot cookie: \(cookiePath)")
+        } else {
+            if FileManager.default.createFile(atPath: cookiePath, contents: nil, attributes: attrs) {
+                logBoot("Created boot cookie: \(cookiePath)")
+            }
+        }
     }
 
     private func showOpenZFSNotInstalledAlert() {

@@ -70,9 +70,24 @@ class ZFSManager {
     }
 
     func refreshPools() {
+        NSLog("ZFSAutoMount: refreshPools() called")
         pools = listPools()
+        NSLog("ZFSAutoMount: Found \(pools.count) pools")
         datasets = listDatasets()
-        NotificationCenter.default.post(name: NSNotification.Name("ZFSPoolsDidChange"), object: nil)
+        NSLog("ZFSAutoMount: Found \(datasets.count) datasets")
+
+        // Log each dataset's mount status
+        for dataset in datasets {
+            if dataset.encrypted {
+                NSLog("ZFSAutoMount:   - \(dataset.name): mounted=\(dataset.mounted), encrypted=\(dataset.encrypted)")
+            }
+        }
+
+        // Always post notification on main thread
+        DispatchQueue.main.async {
+            NSLog("ZFSAutoMount: Posting ZFSPoolsDidChange notification")
+            NotificationCenter.default.post(name: NSNotification.Name("ZFSPoolsDidChange"), object: nil)
+        }
     }
 
     private func listPools() -> [ZFSPool] {
@@ -126,19 +141,48 @@ class ZFSManager {
     // MARK: - Mount Management
 
     func mountAllDatasets(completion: @escaping (Bool, String?) -> Void) {
-        // First, load keys for encrypted datasets
+        NSLog("ZFSAutoMount: Starting mountAllDatasets()")
+
+        // First, refresh to get current pool and dataset state
+        refreshPools()
+
+        // Then, load keys for encrypted datasets
         loadKeysForEncryptedDatasets { keysLoaded, keyError in
             if !keysLoaded {
+                NSLog("ZFSAutoMount: Failed to load keys: \(keyError ?? "unknown")")
                 completion(false, keyError)
                 return
             }
 
+            NSLog("ZFSAutoMount: Keys loaded successfully, executing mount_all")
+
             // Then mount all
             self.helperManager.executeCommand(command: "mount_all") { success, output, error in
-                if success {
-                    self.refreshPools()
+                NSLog("ZFSAutoMount: mount_all returned: success=\(success), output=\(output ?? ""), error=\(error ?? "")")
+
+                // Always refresh to get actual state, regardless of command success
+                self.refreshPools()
+
+                // Verify actual mount state
+                let encryptedDatasets = self.datasets.filter { $0.encrypted }
+                NSLog("ZFSAutoMount: Verifying mount state for \(encryptedDatasets.count) encrypted datasets")
+
+                var notMounted: [String] = []
+                for dataset in encryptedDatasets {
+                    NSLog("ZFSAutoMount: Checking \(dataset.name): mounted=\(dataset.mounted)")
+                    if !dataset.mounted {
+                        notMounted.append(dataset.name)
+                    }
                 }
-                completion(success, error)
+
+                if !notMounted.isEmpty {
+                    let errorMsg = "Failed to mount datasets: \(notMounted.joined(separator: ", "))"
+                    NSLog("ZFSAutoMount: \(errorMsg)")
+                    completion(false, errorMsg)
+                } else {
+                    NSLog("ZFSAutoMount: All encrypted datasets verified as mounted")
+                    completion(true, nil)
+                }
             }
         }
     }
@@ -148,7 +192,13 @@ class ZFSManager {
     private func loadKeysForEncryptedDatasets(completion: @escaping (Bool, String?) -> Void) {
         let encryptedDatasets = datasets.filter { $0.encrypted && !$0.mounted }
 
+        NSLog("ZFSAutoMount: Found \(encryptedDatasets.count) encrypted unmounted datasets")
+        for ds in encryptedDatasets {
+            NSLog("ZFSAutoMount:   - \(ds.name) (keyFormat: \(ds.keyFormat ?? "none"))")
+        }
+
         if encryptedDatasets.isEmpty {
+            NSLog("ZFSAutoMount: No encrypted unmounted datasets, skipping key loading")
             completion(true, nil)
             return
         }
@@ -158,9 +208,13 @@ class ZFSManager {
 
         for dataset in encryptedDatasets {
             group.enter()
+            NSLog("ZFSAutoMount: Loading key for \(dataset.name)")
             loadKeyForDataset(dataset) { success, error in
                 if !success, let error = error {
+                    NSLog("ZFSAutoMount: Failed to load key for \(dataset.name): \(error)")
                     errors.append("\(dataset.name): \(error)")
+                } else {
+                    NSLog("ZFSAutoMount: Successfully loaded key for \(dataset.name)")
                 }
                 group.leave()
             }
@@ -168,36 +222,87 @@ class ZFSManager {
 
         group.notify(queue: .main) {
             if errors.isEmpty {
+                NSLog("ZFSAutoMount: All keys loaded successfully")
                 completion(true, nil)
             } else {
-                completion(false, "Failed to load keys:\n" + errors.joined(separator: "\n"))
+                let errorMsg = "Failed to load keys:\n" + errors.joined(separator: "\n")
+                NSLog("ZFSAutoMount: \(errorMsg)")
+                completion(false, errorMsg)
             }
         }
     }
 
     private func loadKeyForDataset(_ dataset: ZFSDataset, completion: @escaping (Bool, String?) -> Void) {
+        NSLog("ZFSAutoMount: loadKeyForDataset(\(dataset.name)) - checking config file first")
+
         // First, check config file for keylocation
         if let config = configParser.getConfig(for: dataset.name),
            let keyLocation = config.options["keylocation"],
            keyLocation.hasPrefix("file://") {
             let keyPath = String(keyLocation.dropFirst(7)) // Remove "file://"
-            if let keyContent = try? String(contentsOfFile: keyPath, encoding: .utf8) {
+            NSLog("ZFSAutoMount: Found keylocation in config: \(keyPath)")
+
+            // Read keyfile - handle both binary (raw) and text (passphrase) formats
+            if let keyData = try? Data(contentsOf: URL(fileURLWithPath: keyPath)) {
+                let keyContent: String
+                if dataset.keyFormat == "raw" {
+                    // For raw keys, convert binary to hex string
+                    keyContent = keyData.map { String(format: "%02x", $0) }.joined()
+                    NSLog("ZFSAutoMount: Read raw key from file (\(keyData.count) bytes -> \(keyContent.count) hex chars)")
+                } else {
+                    // For passphrase keys, read as UTF-8 text
+                    if let text = String(data: keyData, encoding: .utf8) {
+                        keyContent = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        NSLog("ZFSAutoMount: Read passphrase key from file")
+                    } else {
+                        NSLog("ZFSAutoMount: Failed to decode passphrase as UTF-8")
+                        return
+                    }
+                }
+
+                NSLog("ZFSAutoMount: Successfully read key from file, sending to helper")
                 helperManager.loadKey(for: dataset.name, key: keyContent, keyFormat: dataset.keyFormat ?? "raw") { success, error in
                     completion(success, error)
                 }
                 return
+            } else {
+                NSLog("ZFSAutoMount: Failed to read key from file: \(keyPath)")
             }
         }
 
-        // Try to get key from keychain
-        if let key = keychainHelper.getKey(for: dataset.name) {
-            helperManager.loadKey(for: dataset.name, key: key, keyFormat: dataset.keyFormat ?? "passphrase") { success, error in
-                completion(success, error)
-            }
-        } else {
-            // Prompt user for key
-            DispatchQueue.main.async {
-                self.promptForKey(dataset: dataset, completion: completion)
+        // NEW APPROACH: Let the privileged helper check keychain itself (it runs as root)
+        // Pass empty key - helper will check system keychain, then user keychain
+        NSLog("ZFSAutoMount: No config file key, asking helper to check keychain")
+        helperManager.loadKey(for: dataset.name, key: "", keyFormat: dataset.keyFormat ?? "raw") { success, error in
+            if success {
+                // Key found in keychain by helper
+                NSLog("ZFSAutoMount: Helper found key in keychain for \(dataset.name)")
+                completion(true, nil)
+            } else {
+                NSLog("ZFSAutoMount: Helper couldn't find key in keychain: \(error ?? "unknown")")
+                // No key in keychain - try user keychain from main app as fallback
+                if let key = self.keychainHelper.getKey(for: dataset.name) {
+                    NSLog("ZFSAutoMount: Found key in user keychain from app, sending to helper")
+                    // Found in user keychain (requires user session), send to helper
+                    self.helperManager.loadKey(for: dataset.name, key: key, keyFormat: dataset.keyFormat ?? "raw") { success2, error2 in
+                        if success2 {
+                            NSLog("ZFSAutoMount: Successfully loaded key from user keychain")
+                            completion(true, nil)
+                        } else {
+                            NSLog("ZFSAutoMount: Failed to load key from user keychain, prompting user")
+                            // Still failed - prompt user
+                            DispatchQueue.main.async {
+                                self.promptForKey(dataset: dataset, completion: completion)
+                            }
+                        }
+                    }
+                } else {
+                    NSLog("ZFSAutoMount: No key in user keychain either, prompting user")
+                    // Not in any keychain - prompt user
+                    DispatchQueue.main.async {
+                        self.promptForKey(dataset: dataset, completion: completion)
+                    }
+                }
             }
         }
     }

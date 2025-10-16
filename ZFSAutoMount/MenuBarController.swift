@@ -5,6 +5,7 @@ class MenuBarController {
     private var statusItem: NSStatusItem
     private var zfsManager: ZFSManager
     private var preferencesWindow: NSWindow?
+    private var refreshTimer: Timer?
 
     init(zfsManager: ZFSManager) {
         self.zfsManager = zfsManager
@@ -19,6 +20,21 @@ class MenuBarController {
             name: NSNotification.Name("ZFSPoolsDidChange"),
             object: nil
         )
+
+        // Start periodic refresh timer (every 30 seconds)
+        startRefreshTimer()
+    }
+
+    deinit {
+        refreshTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private func startRefreshTimer() {
+        // Refresh pool status every 30 seconds
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            self?.zfsManager.refreshPools()
+        }
     }
 
     private func setupMenuBar() {

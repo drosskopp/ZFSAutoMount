@@ -35,13 +35,35 @@ class KeychainHelper {
     // MARK: - Get Key
 
     func getKey(for dataset: String) -> String? {
-        let query: [String: Any] = [
+        // Try user keychain first (when logged in)
+        if let key = getKeyFromKeychain(dataset: dataset, useSystemKeychain: false) {
+            return key
+        }
+
+        // Fallback to system keychain (for boot-time access)
+        if let key = getKeyFromKeychain(dataset: dataset, useSystemKeychain: true) {
+            return key
+        }
+
+        return nil
+    }
+
+    private func getKeyFromKeychain(dataset: String, useSystemKeychain: Bool) -> String? {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: dataset,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
+
+        // Add system keychain path if needed
+        if useSystemKeychain {
+            let systemKeychain = "/Library/Keychains/System.keychain"
+            if let keychainRef = openSystemKeychain(systemKeychain) {
+                query[kSecMatchSearchList as String] = [keychainRef] as CFArray
+            }
+        }
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -53,6 +75,13 @@ class KeychainHelper {
         }
 
         return key
+    }
+
+    // Helper to open system keychain
+    private func openSystemKeychain(_ path: String) -> SecKeychain? {
+        var keychain: SecKeychain?
+        let status = Security.SecKeychainOpen(path, &keychain)
+        return status == errSecSuccess ? keychain : nil
     }
 
     // MARK: - Delete Key

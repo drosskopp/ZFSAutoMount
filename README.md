@@ -4,13 +4,15 @@ Automatic mounting and encryption key management for OpenZFS on macOS Tahoe (26.
 
 ## Features
 
-- 🚀 **Auto-import** ZFS pools at boot
-- 🔒 **Encryption support** with Keychain integration
-  - Passphrase and keyfile support
+- 🚀 **Auto-import** ZFS pools at boot (before user login)
+- 🔒 **Encryption support** via secure keyfiles
+  - Passphrase and raw keyfile support
   - Per-dataset encryption keys
-- 📊 **Menu bar app** showing pool status
+  - Boot-time key access via `/etc/zfs/keys/`
+- 📊 **Menu bar app** showing pool status and capacity
 - ⚙️ **Configuration file** for custom mount options (`/etc/zfs/automount.conf`)
-- 🔐 **Privileged helper** for secure root operations
+- 🔐 **Privileged helper** for secure root operations via XPC
+- 🎯 **Native macOS integration** with SwiftUI and AppKit
 
 ## Requirements
 
@@ -52,54 +54,56 @@ brew install --cask zfs-automount
 - **Mount All Datasets**: Mount all datasets (prompts for encryption keys if needed)
 - **Preferences**: Configure auto-mount settings and manage saved keys
 
-### Encryption Keys
+### Encryption Setup
 
-When you mount an encrypted dataset for the first time:
+For encrypted datasets, store keyfiles securely:
 
-1. You'll be prompted to enter the encryption key/passphrase
-2. Option to save the key to macOS Keychain
-3. Keys are automatically loaded on subsequent mounts
+```bash
+# 1. Create secure key directory
+sudo mkdir -p /etc/zfs/keys
+sudo chmod 700 /etc/zfs/keys
 
-To manage saved keys:
-- Open Preferences → Encryption tab
-- View and delete saved keys
+# 2. Copy your keyfile
+sudo cp /path/to/your/keyfile /etc/zfs/keys/encryption.key
+sudo chmod 400 /etc/zfs/keys/encryption.key
+sudo chown root:wheel /etc/zfs/keys/encryption.key
+```
 
 ### Configuration File
 
-Create custom mount options in `/etc/zfs/automount.conf`:
+Create `/etc/zfs/automount.conf` with dataset options:
 
 ```bash
-# Format: pool/dataset option=value
+# Format: dataset_name [options]
 
-# Examples:
-tank/enc1 keylocation=file:///path/to/keyfile
-media/enc2 readonly=on
-tank/backup canmount=noauto
+# Encrypted datasets (point to keyfile)
+pool/encrypted1 keylocation=file:///etc/zfs/keys/encryption.key
+pool/encrypted2 keylocation=file:///etc/zfs/keys/encryption.key
+
+# Different keys for different datasets
+backup/sensitive keylocation=file:///etc/zfs/keys/backup.key
+
+# Non-encrypted datasets (auto-mount)
+pool
+backup
 ```
+
+See `Examples/automount.conf.example` for more details.
 
 ## Boot-Time Mounting
 
 The LaunchDaemon handles automatic mounting at boot:
 
-1. Import all pools (`zpool import -a`)
-2. Load encryption keys from Keychain
-3. Mount all datasets (`zfs mount -a`)
+1. Wait for disk subsystem to be ready (InvariantDisks daemon)
+2. Import all pools (`zpool import -a`)
+3. Load encryption keys from configured keyfiles
+4. Mount all datasets (`zfs mount -a`)
+5. Verify mounts and report status
 
 Check logs:
 ```bash
 tail -f /var/log/zfs-automount.log
-```
-
-## Tested Pools
-
-This app has been tested with the following pool configuration:
-
-```
-media         3.43T  3.71T     2M  /Volumes/media
-media/enc2    3.43T  3.71T  3.43T  /Volumes/media/enc2   [encrypted]
-tank          8.21T  2.23T  2.16M  /Volumes/tank
-tank/airback  2.21T  2.55T  1.90T  -
-tank/enc1     6.00T  2.23T  6.00T  /Volumes/tank/enc1    [encrypted]
+sudo log show --predicate 'eventMessage contains "ZFSAutoMount"' --last 10m
 ```
 
 ## Architecture

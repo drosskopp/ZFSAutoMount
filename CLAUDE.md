@@ -78,9 +78,9 @@ ZFSAutoMount/
 - ⚠️ Full integration with actual ZFS pools
 
 **Test Environment:**
-Mac mini with:
-- `media` pool (3.43T) with `media/enc2` encrypted dataset
-- `tank` pool (8.21T) with `tank/enc1` encrypted dataset (6.00T)
+Example test environment:
+- `backup` pool with `backup/encrypted` dataset
+- `pool` pool with `pool/encrypted` dataset
 
 ## Where This Project Is Going
 
