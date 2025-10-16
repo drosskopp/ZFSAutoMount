@@ -15,6 +15,8 @@
 		AA0000010000000000000011 /* PrivilegedHelperManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000012 /* PrivilegedHelperManager.swift */; };
 		AA0000010000000000000013 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000014 /* Assets.xcassets */; };
 		AA0000010000000000000017 /* ConfigParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000018 /* ConfigParser.swift */; };
+		AE12B6672EA17DE500A41334 /* DiskMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE12B6662EA17DE500A41334 /* DiskMonitor.swift */; };
+		AE12B6692EA1913D00A41334 /* DiskTypeDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE12B6682EA1913D00A41334 /* DiskTypeDetector.swift */; };
 		BB0000010000000000000001 /* HelperMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000002 /* HelperMain.swift */; };
 		BB0000010000000000000003 /* HelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000004 /* HelperProtocol.swift */; };
 		BB0000010000000000000005 /* HelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB0000010000000000000004 /* HelperProtocol.swift */; };
@@ -45,6 +47,8 @@
 		AA0000010000000000000016 /* ZFSAutoMount.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZFSAutoMount.entitlements; sourceTree = "<group>"; };
 		AA0000010000000000000018 /* ConfigParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigParser.swift; sourceTree = "<group>"; };
 		AA0000010000000000000100 /* ZFSAutoMount.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZFSAutoMount.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE12B6662EA17DE500A41334 /* DiskMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskMonitor.swift; sourceTree = "<group>"; };
+		AE12B6682EA1913D00A41334 /* DiskTypeDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskTypeDetector.swift; sourceTree = "<group>"; };
 		BB0000010000000000000002 /* HelperMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelperMain.swift; sourceTree = "<group>"; };
 		BB0000010000000000000004 /* HelperProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelperProtocol.swift; sourceTree = "<group>"; };
 		BB0000010000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -73,6 +77,8 @@
 		AA0000010000000000000050 /* ZFSAutoMount */ = {
 			isa = PBXGroup;
 			children = (
+				AE12B6682EA1913D00A41334 /* DiskTypeDetector.swift */,
+				AE12B6662EA17DE500A41334 /* DiskMonitor.swift */,
 				AA0000010000000000000002 /* ZFSAutoMountApp.swift */,
 				AA0000010000000000000004 /* MenuBarController.swift */,
 				AA0000010000000000000010 /* PreferencesView.swift */,
@@ -214,6 +220,8 @@
 				AA0000010000000000000011 /* PrivilegedHelperManager.swift in Sources */,
 				AA0000010000000000000017 /* ConfigParser.swift in Sources */,
 				BB0000010000000000000005 /* HelperProtocol.swift in Sources */,
+				AE12B6692EA1913D00A41334 /* DiskTypeDetector.swift in Sources */,
+				AE12B6672EA17DE500A41334 /* DiskMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,11 +250,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.openzfs.automount;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -263,11 +271,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.openzfs.automount;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
@@ -277,10 +285,10 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = PrivilegedHelper/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.openzfs.automount.helper;
 				PRODUCT_NAME = org.openzfs.automount.helper;
 				SWIFT_VERSION = 5.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -290,10 +298,10 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = PrivilegedHelper/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.openzfs.automount.helper;
 				PRODUCT_NAME = org.openzfs.automount.helper;
 				SWIFT_VERSION = 5.0;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};

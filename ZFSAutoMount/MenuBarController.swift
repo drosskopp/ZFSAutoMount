@@ -6,10 +6,12 @@ class MenuBarController {
     private var zfsManager: ZFSManager
     private var preferencesWindow: NSWindow?
     private var refreshTimer: Timer?
+    private var diskMonitor: DiskMonitor
 
     init(zfsManager: ZFSManager) {
         self.zfsManager = zfsManager
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.diskMonitor = DiskMonitor.shared
 
         setupMenuBar()
 
@@ -21,17 +23,34 @@ class MenuBarController {
             object: nil
         )
 
-        // Start periodic refresh timer (every 30 seconds)
+        // Start real-time disk monitoring
+        startDiskMonitoring()
+
+        // Start periodic refresh timer (every 30 seconds as backup)
         startRefreshTimer()
     }
 
     deinit {
         refreshTimer?.invalidate()
+        diskMonitor.stopMonitoring()
         NotificationCenter.default.removeObserver(self)
     }
 
+    private func startDiskMonitoring() {
+        // Set up callback for real-time disk events
+        diskMonitor.onDiskChanged = { [weak self] in
+            print("MenuBarController: 🔄 Disk event detected, refreshing pools")
+            self?.zfsManager.refreshPools()
+        }
+
+        // Start monitoring
+        print("MenuBarController: Initializing disk monitoring...")
+        diskMonitor.startMonitoring()
+    }
+
     private func startRefreshTimer() {
-        // Refresh pool status every 30 seconds
+        // Refresh pool status every 30 seconds as backup
+        // (in case disk events are missed)
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             self?.zfsManager.refreshPools()
         }
@@ -58,18 +77,78 @@ class MenuBarController {
         } else {
             // Add pool status items
             for pool in pools {
-                let poolMenu = NSMenuItem(title: pool.name, action: nil, keyEquivalent: "")
+                let poolMenu = NSMenuItem(title: "📦 \(pool.name)", action: nil, keyEquivalent: "")
                 let submenu = NSMenu()
 
-                // Health status
-                let healthItem = NSMenuItem(title: "Health: \(pool.health)", action: nil, keyEquivalent: "")
+                // Health status with icon
+                let healthIcon = pool.health == "ONLINE" ? "✅" : "⚠️"
+                let healthItem = NSMenuItem(title: "\(healthIcon) Health: \(pool.health)", action: nil, keyEquivalent: "")
                 healthItem.isEnabled = false
                 submenu.addItem(healthItem)
 
                 // Capacity
-                let capacityItem = NSMenuItem(title: "Used: \(pool.used) / \(pool.capacity)", action: nil, keyEquivalent: "")
+                let capacityItem = NSMenuItem(title: "💾 Used: \(pool.used) / \(pool.capacity)", action: nil, keyEquivalent: "")
                 capacityItem.isEnabled = false
                 submenu.addItem(capacityItem)
+
+                // Scrub status
+                if let lastScrub = pool.lastScrub, let scrubStatus = pool.scrubStatus {
+                    let scrubItem = NSMenuItem(title: "🔍 Last Scrub: \(lastScrub) - \(scrubStatus)", action: nil, keyEquivalent: "")
+                    scrubItem.isEnabled = false
+                    submenu.addItem(scrubItem)
+                }
+
+                // TRIM status (only for SSD pools)
+                if let trimEligible = pool.trimEligible, trimEligible {
+                    if let trimStatus = pool.trimStatus {
+                        let trimItem = NSMenuItem(title: "✂️ TRIM: \(trimStatus)", action: nil, keyEquivalent: "")
+                        trimItem.isEnabled = false
+                        submenu.addItem(trimItem)
+                    }
+                }
+
+                // Get datasets for this pool
+                let datasets = zfsManager.getDatasets(forPool: pool.name)
+
+                if !datasets.isEmpty {
+                    submenu.addItem(NSMenuItem.separator())
+
+                    // Datasets header
+                    let datasetsHeader = NSMenuItem(title: "Datasets:", action: nil, keyEquivalent: "")
+                    datasetsHeader.isEnabled = false
+                    submenu.addItem(datasetsHeader)
+
+                    // List each dataset with status
+                    for dataset in datasets {
+                        let shortName = dataset.name.replacingOccurrences(of: "\(pool.name)/", with: "  ")
+                        let mountIcon = dataset.mounted ? "✅" : "⭕️"
+                        let encryptIcon = dataset.encrypted ? "🔒" : ""
+
+                        let statusText: String
+                        if dataset.mounted {
+                            statusText = "Mounted"
+                        } else {
+                            statusText = "Not Mounted"
+                        }
+
+                        let datasetItem = NSMenuItem(
+                            title: "\(mountIcon) \(shortName) \(encryptIcon)",
+                            action: nil,
+                            keyEquivalent: ""
+                        )
+                        datasetItem.isEnabled = false
+                        submenu.addItem(datasetItem)
+
+                        // Add indented status line
+                        let statusItem = NSMenuItem(
+                            title: "    → \(statusText)",
+                            action: nil,
+                            keyEquivalent: ""
+                        )
+                        statusItem.isEnabled = false
+                        submenu.addItem(statusItem)
+                    }
+                }
 
                 poolMenu.submenu = submenu
                 menu.addItem(poolMenu)
@@ -77,15 +156,6 @@ class MenuBarController {
         }
 
         menu.addItem(NSMenuItem.separator())
-
-        // Refresh pools
-        let refreshItem = NSMenuItem(
-            title: "Refresh Pools",
-            action: #selector(refreshPools),
-            keyEquivalent: "r"
-        )
-        refreshItem.target = self
-        menu.addItem(refreshItem)
 
         // Mount all
         let mountItem = NSMenuItem(
@@ -119,10 +189,6 @@ class MenuBarController {
         menu.addItem(quitItem)
 
         statusItem.menu = menu
-    }
-
-    @objc private func refreshPools() {
-        zfsManager.refreshPools()
     }
 
     @objc private func mountAllDatasets() {
@@ -176,6 +242,13 @@ class MenuBarController {
     }
 
     private func showNotification(title: String, message: String) {
+        // Check if notifications are enabled
+        let showNotifications = UserDefaults.standard.bool(forKey: "showNotifications")
+        guard showNotifications else {
+            print("Notifications disabled, skipping: \(title)")
+            return
+        }
+
         let notification = NSUserNotification()
         notification.title = title
         notification.informativeText = message

@@ -6,6 +6,10 @@ struct ZFSPool: Codable {
     let health: String
     let capacity: String
     let used: String
+    var lastScrub: String?
+    var scrubStatus: String?
+    var trimStatus: String?
+    var trimEligible: Bool?
 }
 
 struct ZFSDataset: Codable {
@@ -69,6 +73,14 @@ class ZFSManager {
         return pools
     }
 
+    func getDatasets() -> [ZFSDataset] {
+        return datasets
+    }
+
+    func getDatasets(forPool poolName: String) -> [ZFSDataset] {
+        return datasets.filter { $0.name.hasPrefix("\(poolName)/") || $0.name == poolName }
+    }
+
     func refreshPools() {
         NSLog("ZFSAutoMount: refreshPools() called")
         pools = listPools()
@@ -97,15 +109,77 @@ class ZFSManager {
         for line in output.components(separatedBy: "\n") {
             let parts = line.split(separator: "\t").map(String.init)
             if parts.count >= 4 {
-                result.append(ZFSPool(
+                var pool = ZFSPool(
                     name: parts[0],
                     health: parts[1],
                     capacity: parts[2],
-                    used: parts[3]
-                ))
+                    used: parts[3],
+                    lastScrub: nil,
+                    scrubStatus: nil,
+                    trimStatus: nil,
+                    trimEligible: nil
+                )
+
+                // Get scrub status
+                let statusOutput = runCommand(zpoolPath, args: ["status", pool.name])
+                let scrubInfo = parseScrubStatus(statusOutput)
+                pool.lastScrub = scrubInfo.lastScrub
+                pool.scrubStatus = scrubInfo.status
+
+                // Get TRIM eligibility
+                let diskInfo = DiskTypeDetector.shared.getPoolDiskInfo(pool.name)
+                pool.trimEligible = diskInfo.trimSupport == .supported
+                pool.trimStatus = getTRIMStatusLabel(diskInfo.trimSupport)
+
+                result.append(pool)
             }
         }
         return result
+    }
+
+    private func parseScrubStatus(_ statusOutput: String) -> (lastScrub: String?, status: String?) {
+        // Look for scrub info in status output
+        for line in statusOutput.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.contains("scan:") || trimmed.contains("scrub:") {
+                // Parse scrub line
+                if trimmed.contains("none requested") {
+                    return (lastScrub: "Never", status: "Never run")
+                } else if trimmed.contains("scrub in progress") {
+                    return (lastScrub: "Now", status: "In progress")
+                } else if trimmed.contains("scrub repaired") {
+                    // Extract date
+                    let pattern = "on ([A-Za-z]{3} [A-Za-z]{3}\\s+\\d+ \\d+:\\d+:\\d+ \\d{4})"
+                    if let range = trimmed.range(of: pattern, options: .regularExpression) {
+                        let dateStr = String(trimmed[range]).replacingOccurrences(of: "on ", with: "")
+                        return (lastScrub: formatScrubDate(dateStr), status: "Clean")
+                    }
+                    return (lastScrub: "Recently", status: "Clean")
+                } else if trimmed.contains("with") && trimmed.contains("errors") {
+                    return (lastScrub: "Recently", status: "Errors found")
+                }
+            }
+        }
+
+        return (lastScrub: nil, status: nil)
+    }
+
+    private func formatScrubDate(_ dateStr: String) -> String {
+        // Convert "Mon Oct 16 14:30:00 2025" to "Oct 16, 2025"
+        let components = dateStr.components(separatedBy: " ")
+        if components.count >= 5 {
+            return "\(components[1]) \(components[2]), \(components[4])"
+        }
+        return dateStr
+    }
+
+    private func getTRIMStatusLabel(_ support: TRIMSupport) -> String {
+        switch support {
+        case .supported: return "Eligible"
+        case .notSupported: return "Not eligible"
+        case .maybeSupported: return "Maybe (test first)"
+        }
     }
 
     private func listDatasets() -> [ZFSDataset] {

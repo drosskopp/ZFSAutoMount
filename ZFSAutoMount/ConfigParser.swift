@@ -92,7 +92,7 @@ class ConfigParser {
 
     // MARK: - Add or Update Entry
 
-    func updateConfig(dataset: String, options: [String: String]) {
+    func updateConfig(for dataset: String, options: [String: String]) {
         var configs = parseConfig()
 
         // Remove existing entry for this dataset
@@ -107,10 +107,14 @@ class ConfigParser {
 
     // MARK: - Remove Entry
 
-    func removeConfig(for dataset: String) {
+    func removeDataset(_ dataset: String) {
         var configs = parseConfig()
         configs.removeAll { $0.dataset == dataset }
         writeConfig(configs)
+    }
+
+    func removeConfig(for dataset: String) {
+        removeDataset(dataset)
     }
 
     // MARK: - Write Config

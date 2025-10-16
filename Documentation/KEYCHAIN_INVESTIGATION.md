@@ -109,7 +109,7 @@ let hexKey = keyData.map { String(format: "%02x", $0) }.joined()
 **Format**:
 ```
 # dataset_name keylocation=file:///path/to/keyfile
-tank/encrypted keylocation=file:///etc/zfs/keys/encrypted.key
+mypool/encrypted keylocation=file:///etc/zfs/keys/encrypted.key
 ```
 
 **Keyfile Setup**:

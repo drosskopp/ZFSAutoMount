@@ -16,10 +16,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var zfsManager: ZFSManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Check for boot-mount CLI argument
+        // Check for CLI arguments
         let args = CommandLine.arguments
+
         if args.contains("--boot-mount") {
             handleBootMount()
+            NSApp.terminate(nil)
+            return
+        }
+
+        if args.contains("--run-scrub") {
+            handleRunScrub()
+            NSApp.terminate(nil)
+            return
+        }
+
+        if args.contains("--run-trim") {
+            handleRunTRIM()
             NSApp.terminate(nil)
             return
         }
@@ -45,30 +58,50 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleBootMount() {
         let manager = ZFSManager.shared
 
-        logBoot("Starting boot-time import and mount")
+        // Check user preferences for what to do at boot
+        let shouldImport = UserDefaults.standard.bool(forKey: "autoImportOnBoot")
+        let shouldMount = UserDefaults.standard.bool(forKey: "autoMountOnBoot")
+
+        logBoot("Starting boot-time automation")
+        logBoot("Preferences: import=\(shouldImport), mount=\(shouldMount)")
 
         // Wait for disk subsystem to be ready
         waitForDiskSubsystem()
 
-        // Import all pools
-        manager.importAllPools { success, error in
-            if success {
-                self.logBoot("Pools imported successfully")
-            } else {
-                self.logBoot("Error importing pools: \(error ?? "unknown")")
-            }
-
-            // Mount all datasets
-            manager.mountAllDatasets { success, error in
+        // Always import pools if either toggle is on (you can't mount without importing)
+        if shouldImport || shouldMount {
+            logBoot("Importing all pools...")
+            manager.importAllPools { success, error in
                 if success {
-                    self.logBoot("All datasets mounted successfully")
-                    self.updateBootCookie()
+                    self.logBoot("✅ Pools imported successfully")
                 } else {
-                    self.logBoot("Error mounting datasets: \(error ?? "unknown")")
+                    self.logBoot("❌ Error importing pools: \(error ?? "unknown")")
+                    exit(1)
+                    return
                 }
 
-                exit(success ? 0 : 1)
+                // Only mount datasets if that toggle is on
+                if shouldMount {
+                    self.logBoot("Mounting all datasets...")
+                    manager.mountAllDatasets { success, error in
+                        if success {
+                            self.logBoot("✅ All datasets mounted successfully")
+                            self.updateBootCookie()
+                        } else {
+                            self.logBoot("❌ Error mounting datasets: \(error ?? "unknown")")
+                        }
+
+                        exit(success ? 0 : 1)
+                    }
+                } else {
+                    self.logBoot("⏭️  Skipping dataset mounting (disabled in preferences)")
+                    self.updateBootCookie()
+                    exit(0)
+                }
             }
+        } else {
+            logBoot("⏭️  Boot automation disabled (both toggles are off)")
+            exit(0)
         }
 
         // Wait for async operations
@@ -154,6 +187,109 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 logBoot("Created boot cookie: \(cookiePath)")
             }
         }
+    }
+
+    private func handleRunScrub() {
+        let manager = ZFSManager.shared
+
+        log("Starting scheduled scrub operation")
+
+        // Get all pools
+        manager.refreshPools()
+        let pools = manager.getPools()
+
+        log("Found \(pools.count) pools")
+
+        var allSuccess = true
+        let group = DispatchGroup()
+
+        for pool in pools {
+            group.enter()
+            log("Starting scrub on pool: \(pool.name)")
+
+            let helper = PrivilegedHelperManager.shared
+            helper.executeCommand(command: "scrub_pool:\(pool.name)") { success, output, error in
+                if success {
+                    self.log("✅ Scrub started on \(pool.name)")
+                } else {
+                    self.log("❌ Failed to start scrub on \(pool.name): \(error ?? "unknown")")
+                    allSuccess = false
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            if allSuccess {
+                self.log("✅ All scrub operations started successfully")
+                exit(0)
+            } else {
+                self.log("⚠️ Some scrub operations failed")
+                exit(1)
+            }
+        }
+
+        RunLoop.main.run()
+    }
+
+    private func handleRunTRIM() {
+        let manager = ZFSManager.shared
+
+        log("Starting scheduled TRIM operation")
+
+        // Get all pools
+        manager.refreshPools()
+        let pools = manager.getPools()
+
+        // Filter to only SSD-eligible pools
+        let ssdPools = pools.filter { $0.trimEligible == true }
+
+        log("Found \(ssdPools.count) SSD-eligible pools out of \(pools.count) total")
+
+        if ssdPools.isEmpty {
+            log("No SSD-eligible pools found, exiting")
+            exit(0)
+            return
+        }
+
+        var allSuccess = true
+        let group = DispatchGroup()
+
+        for pool in ssdPools {
+            group.enter()
+            log("Starting TRIM on pool: \(pool.name)")
+
+            let helper = PrivilegedHelperManager.shared
+            helper.executeCommand(command: "trim_pool:\(pool.name)") { success, output, error in
+                if success {
+                    self.log("✅ TRIM started on \(pool.name)")
+                } else {
+                    self.log("❌ Failed to start TRIM on \(pool.name): \(error ?? "unknown")")
+                    allSuccess = false
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            if allSuccess {
+                self.log("✅ All TRIM operations started successfully")
+                exit(0)
+            } else {
+                self.log("⚠️ Some TRIM operations failed")
+                exit(1)
+            }
+        }
+
+        RunLoop.main.run()
+    }
+
+    private func log(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .long
+        let timestamp = formatter.string(from: Date())
+        print("[\(timestamp)] ZFS AutoMount: \(message)")
     }
 
     private func showOpenZFSNotInstalledAlert() {

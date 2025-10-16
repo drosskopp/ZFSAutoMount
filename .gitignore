@@ -12,6 +12,8 @@ xcuserdata/
 *.xccheckout
 *.moved-aside
 DerivedData/
+*.hmap
+*.ipa
 *.xcuserstate
 *.xcscmblueprint
 
@@ -19,50 +21,44 @@ DerivedData/
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon
 ._*
 
-# Temporary files
-*.swp
-*.swo
+# Thumbnails
+Thumbs.db
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Session and local files
+CURRENT_STATUS.md
+SESSION_SUMMARY.md
+*_SUMMARY.md
+.github-backup/
+
+# Local deployment scripts (user-specific)
+deploy_to_*.sh
+*_ON_MINI.*
+
+# Backup files
+*.backup
+*.bak
 *~
-.#*
 
-# Private data
-/etc/zfs/keys/
-*.key
-*.pem
-
-# Logs
+# Log files
 *.log
 
-# IDE
-.vscode/
-.idea/
-
-# Build products
-*.app
-*.dSYM
-*.ipa
-
-# Personal test data
-test-data/
-my-pools.conf
-
-# Session-specific files (don't commit)
-CURRENT_STATUS.md
-*-session-notes.md
-todo.md
-
-# Deployment scripts with actual pool/dataset names
-deploy-*.sh
-fix-*.sh
-check-*.sh
-diagnose-*.sh
-import-*.sh
-test-mount.sh
-copy-*.sh
-
-# Config files with real dataset names
-automount.conf
+# Personal data
 /etc/zfs/automount.conf

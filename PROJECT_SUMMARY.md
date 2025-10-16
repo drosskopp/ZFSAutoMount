@@ -236,10 +236,10 @@ Your Mac mini test machine:
 | Pool/Dataset | Size | Encrypted | Notes |
 |--------------|------|-----------|-------|
 | media | 3.43T / 7.14T | No | Parent pool |
-| media/enc2 | 3.43T | **Yes** | Keyfile encrypted |
+| storage/dataset2 | 3.43T | **Yes** | Keyfile encrypted |
 | tank | 8.21T / 10.44T | No | Parent pool |
-| tank/airback | 2.21T | No | - (no mountpoint) |
-| tank/enc1 | 6.00T | **Yes** | Keyfile encrypted |
+| mypool/backup | 2.21T | No | - (no mountpoint) |
+| mypool/dataset1 | 6.00T | **Yes** | Keyfile encrypted |
 
 App has been designed specifically with your setup in mind.
 
@@ -401,8 +401,8 @@ open /Applications/ZFSAutoMount.app
 # 4. Set up encryption keys
 sudo nano /etc/zfs/automount.conf
 # Add:
-# media/enc2 keylocation=file:///path/to/media.key
-# tank/enc1 keylocation=file:///path/to/tank.key
+# storage/dataset2 keylocation=file:///path/to/dataset.key
+# mypool/dataset1 keylocation=file:///path/to/pool.key
 
 # 5. Test mount
 # Click menu bar icon → Mount All Datasets
@@ -440,7 +440,7 @@ sudo reboot
 # Preferences → Encryption → Select dataset → Delete
 
 # Or via command line
-security delete-generic-password -s org.openzfs.automount -a media/enc2
+security delete-generic-password -s org.openzfs.automount -a storage/dataset2
 ```
 
 See [USAGE.md](USAGE.md) for complete usage guide.
@@ -478,7 +478,7 @@ cat /var/log/zfs-automount-error.log
 
 # Manual pool operations
 sudo zpool import -a
-sudo zfs load-key media/enc2
+sudo zfs load-key storage/dataset2
 sudo zfs mount -a
 ```
 
@@ -519,7 +519,7 @@ sudo zfs mount -a
 **A:** Not for local development. You'll need one ($99/year) for distribution with proper code signing.
 
 ### Q: Will this work with my encrypted datasets?
-**A:** Yes! Designed specifically for `media/enc2` and `tank/enc1` with keyfile support.
+**A:** Yes! Designed specifically for `storage/dataset2` and `mypool/dataset1` with keyfile support.
 
 ### Q: Is it safe to store keys in Keychain?
 **A:** Yes, macOS Keychain is encrypted and secured by your login password.

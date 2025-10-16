@@ -71,6 +71,22 @@ class Helper: NSObject, HelperProtocol, NSXPCListenerDelegate {
                 reply(nil, "Invalid load_key command format")
             }
 
+        case "scrub_pool":
+            if parts.count >= 2 {
+                let poolName = parts[1]
+                scrubPool(poolName: poolName, reply: reply)
+            } else {
+                reply(nil, "Invalid scrub_pool command format")
+            }
+
+        case "trim_pool":
+            if parts.count >= 2 {
+                let poolName = parts[1]
+                trimPool(poolName: poolName, reply: reply)
+            } else {
+                reply(nil, "Invalid trim_pool command format")
+            }
+
         default:
             reply(nil, "Unknown command: \(command)")
         }
@@ -158,6 +174,30 @@ class Helper: NSObject, HelperProtocol, NSXPCListenerDelegate {
         } catch {
             NSLog("ZFSAutoMount Helper: Exception: \(error.localizedDescription)")
             reply(nil, "Failed to write temp key file: \(error.localizedDescription)")
+        }
+    }
+
+    private func scrubPool(poolName: String, reply: @escaping (String?, String?) -> Void) {
+        NSLog("ZFSAutoMount Helper: Starting scrub on pool: \(poolName)")
+        let result = runCommand(zpoolPath, args: ["scrub", poolName])
+        if result.status == 0 {
+            NSLog("ZFSAutoMount Helper: Scrub started successfully on \(poolName)")
+            reply(result.output, nil)
+        } else {
+            NSLog("ZFSAutoMount Helper: Failed to start scrub on \(poolName): \(result.error)")
+            reply(nil, result.error)
+        }
+    }
+
+    private func trimPool(poolName: String, reply: @escaping (String?, String?) -> Void) {
+        NSLog("ZFSAutoMount Helper: Starting TRIM on pool: \(poolName)")
+        let result = runCommand(zpoolPath, args: ["trim", poolName])
+        if result.status == 0 {
+            NSLog("ZFSAutoMount Helper: TRIM started successfully on \(poolName)")
+            reply(result.output, nil)
+        } else {
+            NSLog("ZFSAutoMount Helper: Failed to start TRIM on \(poolName): \(result.error)")
+            reply(nil, result.error)
         }
     }
 

@@ -1,5 +1,10 @@
 # ZFSAutoMount - Project Context for Claude
 
+> **Note**: This file provides context for AI assistants (like Claude Code) when working on this project.
+> It contains the project's architecture, design decisions, and development guidelines.
+
+# ZFSAutoMount - Project Context for Claude
+
 ## Project Overview
 
 **ZFSAutoMount** is a native macOS menu bar application that provides seamless integration of OpenZFS pools with macOS 26.0 (Tahoe) and later. It automatically imports ZFS pools at boot time, manages encryption keys, and provides a user-friendly interface for ZFS dataset management.
