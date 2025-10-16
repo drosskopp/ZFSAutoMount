@@ -5,16 +5,16 @@ Complete guide for using ZFS AutoMount on your Mac mini with your specific ZFS c
 ## Your Current ZFS Setup
 
 ```
-media         3.43T  3.71T     2M  /Volumes/media
-media/enc2    3.43T  3.71T  3.43T  /Volumes/media/enc2   [ENCRYPTED]
-tank          8.21T  2.23T  2.16M  /Volumes/tank
-tank/airback  2.21T  2.55T  1.90T  -
-tank/enc1     6.00T  2.23T  6.00T  /Volumes/tank/enc1    [ENCRYPTED]
+storage         3.43T  3.71T     2M  /Volumes/storage
+storage/dataset2    3.43T  3.71T  3.43T  /Volumes/storage/dataset2   [ENCRYPTED]
+mypool          8.21T  2.23T  2.16M  /Volumes/mypool
+mypool/backup  2.21T  2.55T  1.90T  -
+mypool/dataset1     6.00T  2.23T  6.00T  /Volumes/mypool/dataset1    [ENCRYPTED]
 ```
 
 ### Encrypted Datasets
-- **media/enc2**: 3.43T encrypted dataset with keyfile
-- **tank/enc1**: 6.00T encrypted dataset with keyfile
+- **storage/dataset2**: 3.43T encrypted dataset with keyfile
+- **mypool/dataset1**: 6.00T encrypted dataset with keyfile
 
 ## Installation
 
@@ -69,8 +69,8 @@ brew install --cask zfs-automount
 2. **Add your encrypted datasets**
    ```
    # Your encrypted datasets
-   media/enc2 keylocation=file:///path/to/media-enc2.key
-   tank/enc1 keylocation=file:///path/to/tank-enc1.key
+   storage/dataset2 keylocation=file:///path/to/dataset.key
+   mypool/dataset1 keylocation=file:///path/to/pool.key
    ```
 
    Replace `/path/to/` with actual path to your keyfiles.
@@ -95,8 +95,8 @@ brew install --cask zfs-automount
 
 ```bash
 # Set keylocation in ZFS property
-sudo zfs set keylocation=file:///path/to/keyfile.key media/enc2
-sudo zfs set keylocation=file:///path/to/keyfile.key tank/enc1
+sudo zfs set keylocation=file:///path/to/keyfile.key storage/dataset2
+sudo zfs set keylocation=file:///path/to/keyfile.key mypool/dataset1
 ```
 
 ## Daily Usage
@@ -168,8 +168,8 @@ You'll see:
    ```bash
    # Unmount and unload keys
    sudo zfs unmount -a
-   sudo zfs unload-key media/enc2
-   sudo zfs unload-key tank/enc1
+   sudo zfs unload-key storage/dataset2
+   sudo zfs unload-key mypool/dataset1
 
    # Trigger boot-mount manually
    /Applications/ZFSAutoMount.app/Contents/MacOS/ZFSAutoMount --boot-mount
@@ -206,14 +206,14 @@ sudo nano /etc/zfs/automount.conf
 # ZFS AutoMount Configuration
 
 # Encrypted datasets with keyfiles
-media/enc2 keylocation=file:///Volumes/external/keys/media-enc2.key
-tank/enc1 keylocation=file:///Volumes/external/keys/tank-enc1.key
+storage/dataset2 keylocation=file:///Volumes/external/keys/dataset.key
+mypool/dataset1 keylocation=file:///Volumes/external/keys/pool.key
 
-# Optional: Make tank/airback not auto-mount
-# tank/airback canmount=noauto
+# Optional: Make mypool/backup not auto-mount
+# mypool/backup canmount=noauto
 
-# Optional: Mount media/enc2 readonly
-# media/enc2 readonly=on
+# Optional: Mount storage/dataset2 readonly
+# storage/dataset2 readonly=on
 ```
 
 ### Configuration Options
@@ -245,17 +245,17 @@ zpool status
 
 ```bash
 # Check if key is loaded
-zfs get keystatus media/enc2
+zfs get keystatus storage/dataset2
 
 # Manually load key
-sudo zfs load-key media/enc2
+sudo zfs load-key storage/dataset2
 # Enter key when prompted
 
 # Then mount
-sudo zfs mount media/enc2
+sudo zfs mount storage/dataset2
 
 # Check if mounted
-df -h | grep media/enc2
+df -h | grep storage/dataset2
 ```
 
 ### Menu Bar Icon Not Showing
@@ -317,28 +317,28 @@ sudo rm /Library/LaunchServices/org.openzfs.automount.helper
 
 ## Working with Your Specific Pools
 
-### Mount media/enc2 with Keyfile
+### Mount storage/dataset2 with Keyfile
 
 ```bash
 # If keyfile is at /Volumes/external/keys/media.key
-sudo zfs load-key -L file:///Volumes/external/keys/media.key media/enc2
-sudo zfs mount media/enc2
+sudo zfs load-key -L file:///Volumes/external/keys/media.key storage/dataset2
+sudo zfs mount storage/dataset2
 ```
 
-### Mount tank/enc1 with Keyfile
+### Mount mypool/dataset1 with Keyfile
 
 ```bash
 # If keyfile is at /Volumes/external/keys/tank.key
-sudo zfs load-key -L file:///Volumes/external/keys/tank.key tank/enc1
-sudo zfs mount tank/enc1
+sudo zfs load-key -L file:///Volumes/external/keys/tank.key mypool/dataset1
+sudo zfs mount mypool/dataset1
 ```
 
 ### Unmount Everything
 
 ```bash
 sudo zfs unmount -a
-sudo zpool export tank
-sudo zpool export media
+sudo zpool export mypool
+sudo zpool export storage
 ```
 
 ### Re-import and Auto-Mount
@@ -376,24 +376,24 @@ zfs list -r media
 zfs get encryption,keystatus,keylocation
 
 # Just your encrypted datasets
-zfs get encryption,keystatus,keylocation media/enc2
-zfs get encryption,keystatus,keylocation tank/enc1
+zfs get encryption,keystatus,keylocation storage/dataset2
+zfs get encryption,keystatus,keylocation mypool/dataset1
 ```
 
 ### Manual Key Management
 
 ```bash
 # Change keylocation
-sudo zfs set keylocation=file:///new/path/key.key media/enc2
+sudo zfs set keylocation=file:///new/path/key.key storage/dataset2
 
 # Unload key
-sudo zfs unload-key media/enc2
+sudo zfs unload-key storage/dataset2
 
 # Load key from prompt
-sudo zfs load-key media/enc2
+sudo zfs load-key storage/dataset2
 
 # Load key from file
-sudo zfs load-key -L file:///path/to/key.key media/enc2
+sudo zfs load-key -L file:///path/to/key.key storage/dataset2
 ```
 
 ## Best Practices
